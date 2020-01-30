@@ -968,9 +968,9 @@ class JavaProxy(object):
     def __repr__(self):
         return "<%s: %s>" % (self.__class__.__name__, self.__jni__.value)
 
-    # def __del__(self):
-    #     # If this object is garbage collected, remove it from the proxy cache.
-    #     del _proxy_cache[id(self)]
+    def __del__(self):
+        # If this object is garbage collected, remove it from the proxy cache.
+        del _proxy_cache[id(self)]
 
 
 class JavaInterface(type):
