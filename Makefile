@@ -77,7 +77,7 @@ clean:
 	rm -rf dist
 
 %.class : %.java
-	$(JAVAC) $<
+	$(JAVAC) -target 1.8 $<
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) -Isrc -I$(JAVA_HOME)/include -I$(JAVA_PLATFORM) -o $@ $<
