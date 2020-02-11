@@ -29,6 +29,7 @@ def dispatch(instance, method, args):
     """
     try:
         # print ("PYTHON SIDE DISPATCH", instance, method, args)
+        instance = instance % (2 ** 31)
         pyinstance = _proxy_cache[instance]
         signatures = pyinstance._methods.get(method)
 
@@ -962,15 +963,16 @@ class JavaProxy(object):
         # proxy disappear, the proxy cache should be cleaned to avoid
         # leaking memory on objects that aren't being used.
         _proxy_cache[id(self)] = self
+        _proxy_cache[id(self) % (2 ** 31)] = self
 
         self._as_parameter_ = self.__jni__
 
     def __repr__(self):
         return "<%s: %s>" % (self.__class__.__name__, self.__jni__.value)
 
-    def __del__(self):
-        # If this object is garbage collected, remove it from the proxy cache.
-        del _proxy_cache[id(self)]
+    # def __del__(self):
+    #     # If this object is garbage collected, remove it from the proxy cache.
+    #     del _proxy_cache[id(self)]
 
 
 class JavaInterface(type):
