@@ -92,8 +92,8 @@ PyMODINIT_FUNC initandroid(void) {
 }
 #else
 
-#define LOG_V(...) printf("");
-#define LOG_D(...) printf("");
+#define LOG_V(...) printf("%s", "");
+#define LOG_D(...) printf("%s", "");
 // #define LOG_V(...) printf(__VA_ARGS__); printf("\n")
 // #define LOG_D(...) printf(__VA_ARGS__); printf("\n")
 #define LOG_I(...)       \
@@ -822,7 +822,6 @@ jobjectRefType GetObjectRefType(jobject obj) {
 JNIEXPORT jint JNICALL Java_org_beeware_rubicon_Python_init(JNIEnv *env, jobject thisObj, jstring pythonHome, jstring pythonPath, jstring rubiconLib) {
     int ret = 0;
     char pythonPathVar[512];
-    char rubiconLibVar[256];
 
     LOG_I("Start Python runtime...");
     java = env;
