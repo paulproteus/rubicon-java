@@ -29,7 +29,6 @@ def dispatch(instance, method, args):
     """
     try:
         # print ("PYTHON SIDE DISPATCH", instance, method, args)
-        instance = instance % (2 ** 31)
         pyinstance = _proxy_cache[instance]
         signatures = pyinstance._methods.get(method)
 
@@ -944,6 +943,16 @@ class JavaClass(type):
 # Representations of Java classes and instances
 ###########################################################################
 
+def as_jlong(n):
+    if n > (2 ** 64):
+        raise ValueError("Unable to convert large number to jlong.")
+    if n < 0:
+        raise ValueError("Expected unsigned number.")
+    if n > (2 ** 63):
+        return -n
+    return n
+
+
 class JavaProxy(object):
     def __init__(self):
         # Create a Java-side proxy for this Python-side object
@@ -962,8 +971,7 @@ class JavaProxy(object):
         # not an actual user of proxy objects. If all references to the
         # proxy disappear, the proxy cache should be cleaned to avoid
         # leaking memory on objects that aren't being used.
-        _proxy_cache[id(self)] = self
-        _proxy_cache[id(self) % (2 ** 31)] = self
+        _proxy_cache[as_jlong(id(self))] = self
 
         self._as_parameter_ = self.__jni__
 
