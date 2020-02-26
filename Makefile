@@ -15,17 +15,17 @@ PYTHON_CONFIG_EXTRA_FLAGS := $(shell if [ "${PYTHON_VERSION}" = "3.8" ] ; then e
 LDFLAGS := $(shell $(PYTHON_CONFIG) --ldflags ${PYTHON_CONFIG_EXTRA_FLAGS} | sed 'sX-Wl,-stack_size,1000000XXg')
 LOWERCASE_OS := $(shell uname -s | tr '[A-Z]' '[a-z]')
 
-ifdef JAVA_HOME
-	JAVAC := $(JAVA_HOME)/bin/javac
-else
-	JAVAC := $(shell which javac)
-	ifeq ($(wildcard /usr/libexec/java_home),)
-		JAVA_HOME := $(shell realpath $(JAVAC))
-	else
+# You can set JAVA_HOME to the path to your desired JVM. Otherwise we check /usr/libexec/java_home or the path to javac.
+ifndef JAVA_HOME
+	# This `wildcard` usage is true if the file does not exist. `ifneq` on top of that checks for file existence.
+	ifneq ($(wildcard /usr/libexec/java_home),)
 		JAVA_HOME := $(shell /usr/libexec/java_home)
+	else
+		JAVA_HOME := $(shell realpath $(shell dirname $(shell realpath $(shell which javac) ))/.. )
 	endif
 endif
 JAVA_PLATFORM := $(JAVA_HOME)/include/$(LOWERCASE_OS)
+JAVAC := $(JAVA_HOME)/bin/javac
 
 ifeq ($(LOWERCASE_OS),linux)
 	SOEXT := so
