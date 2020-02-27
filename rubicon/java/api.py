@@ -22,7 +22,9 @@ def dispatch(instance, method, args):
     This method has no return value, so it can only be used to represent Java
     interface methods with no return value.
     """
+    print('instance', instance)
     try:
+        instance = jlong(instance).value
         # print ("PYTHON SIDE DISPATCH", instance, method, args)
         pyinstance = _proxy_cache[instance]
         signatures = pyinstance._methods.get(method)
@@ -937,11 +939,14 @@ class JavaClass(type):
 ###########################################################################
 
 class JavaProxy(object):
+    def object_id(self):
+        return id(self)
+
     def __init__(self):
         # Create a Java-side proxy for this Python-side object
         # print("Create new Java Interface instance ", self.__class__)
         klass = self.__class__.__jni__
-        jni = java.CallStaticObjectMethod(reflect.Python, reflect.Python__proxy, klass, jlong(id(self)))
+        jni = java.CallStaticObjectMethod(reflect.Python, reflect.Python__proxy, klass, jlong(self.object_id()))
         if jni.value is None:
             raise RuntimeError("Unable to create proxy instance.")
         jni = cast(java.NewGlobalRef(jni), jclass)
@@ -954,7 +959,7 @@ class JavaProxy(object):
         # not an actual user of proxy objects. If all references to the
         # proxy disappear, the proxy cache should be cleaned to avoid
         # leaking memory on objects that aren't being used.
-        _proxy_cache[id(self)] = self
+        _proxy_cache[jlong(self.object_id()).value] = self
 
         self._as_parameter_ = self.__jni__
 

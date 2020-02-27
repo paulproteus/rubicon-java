@@ -1,7 +1,8 @@
 import math
-from unittest import TestCase
+from unittest import TestCase, mock
 
-from rubicon.java import JavaClass, JavaInterface
+from rubicon.java import JavaClass, JavaInterface, JavaProxy
+from rubicon.java.api import _proxy_cache
 
 
 class JNITest(TestCase):
@@ -320,12 +321,14 @@ class JNITest(TestCase):
         # Create two handler instances so we can check the right one
         # is being invoked.
         handler1 = MyInterface(5)
+        print(list(_proxy_cache.values()), len(_proxy_cache))
         handler2 = MyInterface(10)
 
         # Create an Example object, and register a handler with it.
         Example = JavaClass('org/beeware/rubicon/test/Example')
         example = Example()
         example.set_callback(handler2)
+        print(list(_proxy_cache.values()), len(_proxy_cache))
 
         # Invoke the callback; check that the results have been peeked as expected
         example.test_peek(42)
@@ -377,6 +380,76 @@ class JNITest(TestCase):
         Inner = JavaClass('org/beeware/rubicon/test/Example$Inner')
 
         self.assertEqual(Inner.INNER_CONSTANT, 1234)
+
+class TestProxy(TestCase):
+    def test_proxy_reuse(self):
+        '''Validate that when Java calls a Python object, it creates exactly one proxy object in _proxy_cache.'''
+        ICallback = JavaInterface('org/beeware/rubicon/test/ICallback')
+
+        peek_called = []
+        class TestProxyExample(ICallback):
+            def __init__(self):
+                super().__init__()
+
+            def peek(self, example, value):
+                peek_called.append('yes')
+
+            def poke(self, example, value):
+                pass
+
+        # Expect zero such objects in _proxy_cache
+        print(list(_proxy_cache.values()), len(_proxy_cache))
+        self.assertFalse([o for o in _proxy_cache.values()
+                          if o.__class__.__name__ == 'TestProxyExample'])
+
+
+        # Create Python object; expect it to appear in _proxy_cache
+        test_proxy_example = TestProxyExample()
+        print(list(_proxy_cache.values()), len(_proxy_cache))
+        self.assertEqual(1, len([o for o in _proxy_cache.values()
+                                 if o.__class__.__name__ == 'TestProxyExample']))
+
+        # Cause Java to call our peek() method
+        Example = JavaClass('org/beeware/rubicon/test/Example')
+        example = Example()
+        example.set_callback(test_proxy_example)
+        example.test_peek(1)
+        self.assertEqual(peek_called, ['yes'])
+
+        # Expect only one such object in _proxy_cache
+        print(list(_proxy_cache.values()), len(_proxy_cache))
+        self.assertEqual(1, len([o for o in _proxy_cache.values()
+                                 if o.__class__.__name__ == 'TestProxyExample']))
+
+        # Aggressively clean up
+        instance_id = [key for key in _proxy_cache
+                       if _proxy_cache[key].__class__.__name__ == 'TestProxyExample'][0]
+        print('deleting', instance_id, '\n\n\n\n\n')
+        del _proxy_cache[instance_id]
+
+    def test_proxy_reuse_large_id(self):
+        '''Validate that when Java calls a Python object, it creates exactly
+        one proxy object in _proxy_cache, even if id(self) returns a really
+        large number.'''
+        scary_id = 1 << 63 + 128 # between 2**63 and 2**64
+        def fake_object_id(o):
+            if o.__class__.__name__ == 'TestProxyExample':
+                print('\n\n\nwhoa injected scary\n\n\n', o, scary_id)
+                return scary_id
+            return id(o)
+
+        # Mock JavaProxy.object_id() without `unittest.mock`, since unittest.mock
+        # and rubicon.java both use metaclasses, and seem to be incompatible.
+        real_object_id = JavaProxy.object_id
+        try:
+            JavaProxy.object_id = fake_object_id
+            self.test_proxy_reuse()
+        except Exception as e:
+            raise
+        finally:
+            JavaProxy.object_id = real_object_id
+
+
 
 class ExampleClassWithCleanup(object):
     '''Returns the `Example` JavaClass, wrapped in a context manager
